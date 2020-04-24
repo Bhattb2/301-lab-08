@@ -11,8 +11,8 @@ const pg = require('pg');
 const superagent = require('superagent');
 
 const PORT = process.env.PORT || 3000;
-const client = new pg.Client(process.env.DATABASE_URL);
-client.on('error', err=> console.error(err));
+const client = new pg.Client(process.env.DATABASE_URL); //server becomes client, connects to database
+client.on('error', err=> console.error(err)); //confirms if you are up and running
 app.use(cors());
 
 // PATHS /////
@@ -33,19 +33,39 @@ function locationFunction (request, response) {
       format: 'json',
       limit: 1,
   };
-  superagent.get(url)
-  .query (queryStringParams)
-  .then( data => {
-    let locationData = data.body[0];
-    let location = new Location(city, locationData);
-    response.json(location);
+
+  const searchSQL = ` SELECT * FROM locations WHERE search_query = $1`;
+  const searchValues = [city];
+  return client.query(searchSQL, searchValues)
+    .then(results => {
+      // console.log(results);
+      if (results.rowCount) {
+        // console.log(`${city} came from database request`);
+        console.log(results.rows[0],'line 44');
+        response.send(results.rows[0]);
+      } 
+      else {
+        superagent.get(url)
+          .query(queryStringParams)
+          .then( data => {
+            let locationData = data.body[0];
+            // console.log(locationData);
+            let location = new Location(city,locationData);
+            // console.log(location)
+            // console.log(`${city} came from API`);
+            let SQL = `INSERT INTO locations (search_query, formatted_query, latitude, longitude) VALUES ($1, $2, $3, $4) RETURNING * `;
+            let saveVal = [location.search_query, location.formatted_query, location.latitude, location.longitude];
+            console.log(saveVal, 'line 58');
+            client.query(SQL, saveVal)
+              .then( () => {
+                // response.json(result);
+                response.send(location);
+              });
+          });
+      }
     
   })
-  .catch(err => {
-    errorHandler(err, request, response);
-  })
 }
-
 
 // LOCATION CONSTRUCTOR to get information from geo.json file /////
 function Location (city, geoData) {
@@ -86,7 +106,7 @@ function weatherFunction (request, response){
 
 // WEATHER CONSTRUCTOR /////
 function WeatherConstructor(day) {
-    console.log(day.forecast)
+    // console.log(day.forecast)
 this.forecast = day.summary;
 this.time = new Date(day.time*1000).toString();
 }
@@ -102,7 +122,7 @@ function trailsFunction (request, response){
       const trailsUrl = `https://hikingproject.com/data/get-trails?lat=${latitude}&lon=${longitude}&maxDistance=10&key=${process.env.TRAIL_API_KEY}`;
        return superagent.get(trailsUrl)
       .then(data => {
-        console.log (data);
+        // console.log (data);
           
         let trailsList = data.body.trails.map( value => {
          return new Trails(value);
@@ -141,7 +161,5 @@ function Trails(trail) {
 
 //  ACTIVATE the PORT /////
 client.connect()
-    .then(()=>{
-        app.listen(PORT,() => console.log(`Listening on port ${PORT}`));
+.then (app.listen(PORT,() => console.log(`Listening on port ${PORT}`)));
 
-    });
