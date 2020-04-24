@@ -2,11 +2,11 @@ DROP TABLE IF EXISTS locations;
 
 CREATE TABLE locations (
     id SERIAL PRIMARY KEY,
-    searchquery VARCHAR(255),
-    formattedquery VARCHAR(255),
+    search_query VARCHAR(255),
+    formatted_query VARCHAR(255),
     latitude NUMERIC(10, 7),
     longitude NUMERIC(10, 7)
     
 );
 
-INSERT INTO locations (searchquery, latitude, longitude) VALUES ('seattle', 44, 122);
+INSERT INTO locations (search_query, latitude, longitude) VALUES ('seattle', 44, 122);
